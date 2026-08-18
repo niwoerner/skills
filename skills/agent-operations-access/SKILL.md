@@ -1,6 +1,6 @@
 ---
 name: agent-operations-access
-description: "Explore a project and its operations architecture, create a compact least-privilege .agent.example.vars file, and give the operator concise setup instructions with verified provisioning links."
+description: "Explore a project and its operations architecture, create a compact least-privilege .agent.example.vars file, and give the operator concise setup instructions with verified provisioning links and headless-friendly agent interfaces."
 ---
 
 # Agent Operations Access
@@ -20,6 +20,8 @@ Read applicable repository guidance, deployment configuration, CI workflows,
 observability configuration, database tooling, environment templates, and
 active external-service integrations. Search for names and configuration, not
 secret values.
+
+Inspect existing operations scripts, CLIs, API clients, and MCP configuration.
 
 Inspect related repositories only when they materially own infrastructure,
 deployment, observability, migrations, backups, or shared services. Exclude
@@ -64,7 +66,41 @@ and WRITE access. Scope each PAT to the required repositories and permissions.
 Use a classic PAT only when a required operation is unsupported by fine-grained
 PATs, and state that reason in the response.
 
-### 4. Write `.agent.example.vars`
+### 4. Select an agent-friendly interface
+
+For each Core or Optional service, choose one primary interface and any
+materially useful fallback. Prefer, in order:
+
+1. Existing audited project scripts or wrappers
+2. An official non-interactive CLI with structured output and stable exit codes
+3. A maintained, reputable specialized CLI
+4. An official API or SDK when no suitable CLI exists
+5. An MCP server that passes the temporary headless criteria below
+6. A browser or manual workflow only as a documented fallback
+
+Prefer a CLI over MCP by default. Choose MCP only when its structured tools or
+safety controls materially help and it can run temporarily:
+
+- Without a GUI, browser, device flow, or interactive login at runtime
+- From one version-pinned package, binary, or container image
+- With credentials supplied through process-local environment or configuration
+- Without a persistent daemon, account connection, or host-wide configuration
+- Without user intervention after credential provisioning
+- With clean shutdown and removable temporary files
+
+Evaluate provenance, maintenance, task coverage, machine-readable output,
+reliable exit status, least-privilege authentication, auditability, installation
+cost, and separation of read-only from mutating commands.
+
+Apply the provisioning-link safety rules to interface documentation. Prefer
+first-party tools. Recommend a third-party CLI or MCP only after verifying its
+source, docs, releases, and maintenance; label it third-party. Never recommend
+`curl | sh`, install or start a tool while designing access, or hide mutations.
+
+Keep secrets in `AGENT_*` variables and map them to native environment variables
+for one subprocess. Do not add duplicate native secret assignments.
+
+### 5. Write `.agent.example.vars`
 
 Use:
 
@@ -84,9 +120,10 @@ The file must:
 - Group entries as `Core`, `Optional`, and `Break-glass`.
 - Use active assignments for Core.
 - Comment out Optional and Break-glass assignments.
-- Give each credential at most one short purpose and minimum-scope comment.
+- Give each credential at most one short purpose, minimum-scope, and interface
+  comment.
 - Exclude provisioning links, creation steps, navigation, value formats, and
-  long explanations.
+  commands; put them in the final response.
 - Stay near 40 lines when practical.
 - Contain no real secrets, personal data, or sensitive tenant identifiers.
 
@@ -95,21 +132,21 @@ Example:
 ```dotenv
 # Core
 
-# Repository, CI, and deployment visibility; read-only repository scope.
+# Repository, CI, and deployment visibility via GitHub CLI; repository read-only.
 AGENT_READ_GITHUB=
 
-# Logs, metrics, traces, and alerts; Viewer role.
+# Logs, metrics, traces, and alerts via Grafana API; Viewer role.
 AGENT_READ_GRAFANA=
 
-# Read-only production database investigation.
+# Production database investigation via database-native CLI; read-only observer.
 AGENT_READ_PROD_DATABASE=
 
-# Reviewable branches, PRs, and approved workflow dispatches only.
+# Reviewable branches and PRs via GitHub CLI; no administrative permissions.
 AGENT_WRITE_GITHUB=
 
 # Optional
 
-# Direct provider diagnostics when observability is insufficient.
+# Direct diagnostics via provider CLI when observability is insufficient.
 # AGENT_READ_PROD_PROVIDER=
 
 # Break-glass
@@ -142,18 +179,23 @@ variables. Use query-capable Viewer credentials for observability.
 ## Final response
 
 After writing and validating the file, respond with a concise operator
-checklist. Target 200 words or fewer unless a blocker requires explanation.
+checklist. Target 350 words or fewer unless a blocker requires explanation.
 
 1. Confirm that `.agent.example.vars` was created or updated.
 2. Add `Set up now` with one numbered line per Core credential. State the
    variable, minimum scope, and verified official provisioning link when found.
-3. Add `Optional later` only when useful, with no more than three short items.
-4. End with one reminder to store values in ignored `.agent.vars`, never in the
+3. Add `Use headlessly` with one numbered line per distinct interface. Include
+   its provenance, verified setup link, minimal official install command when
+   available, `AGENT_*`-to-native environment mapping, and one safe structured
+   diagnostic command. For MCP, include a pinned temporary launch command and
+   any important limitation. If none is safe, say so and give a manual fallback.
+4. Add `Optional later` only when useful, with no more than three short items.
+5. End with one reminder to store values in ignored `.agent.vars`, never in the
    example file.
 
 Do not report services discovered, repositories inspected, selection rationale,
 or successful verification steps. Mention only actions the operator must take,
-important limitations, and failures that need attention.
+important interface limitations, and failures that need attention.
 
 Example response:
 
@@ -169,6 +211,11 @@ Set up now:
    official provisioning link.
 3. `AGENT_READ_PROD_DATABASE` — Create a dedicated read-only observer for the
    production database.
+
+Use headlessly:
+
+1. GitHub CLI (official) — Install from https://cli.github.com/. Map the token
+   for one process: `GH_TOKEN="$AGENT_READ_GITHUB" gh repo view --json nameWithOwner`.
 
 Optional later: enable the commented provider credential only if telemetry is
 insufficient for direct diagnostics.
@@ -189,3 +236,8 @@ After writing the template:
 3. Verify no name contains `_SHARED_`.
 4. Run `git diff --check`.
 5. Review the diff for secrets and unrelated changes.
+6. Verify every Core and Optional service has a headless interface or a concise
+   explanation of why none is safe.
+7. Verify READ diagnostics cannot mutate state and WRITE commands are explicit.
+8. Verify interface links and provenance; pin every MCP package or image and
+   confirm it satisfies all temporary headless criteria.

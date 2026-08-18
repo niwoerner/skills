@@ -1,36 +1,70 @@
 ---
 name: agent-operations-access
-description: "Explores a project, related repositories, deployment architecture, and external services to produce a least-privilege .agent.example.vars template with verified credential-provisioning links."
-disable-model-invocation: true
+description: "Explore a project and its operations architecture, create a compact least-privilege .agent.example.vars file, and give the operator concise setup instructions with verified provisioning links."
 ---
 
-# Designing Agent Operations Access
+# Agent Operations Access
 
-Produce a root-level `.agent.example.vars` describing the minimum useful
-credentials an AI operations agent needs to monitor, troubleshoot, test, and
-safely remediate a project.
+Create or update `.agent.example.vars` in the repository root. Do not stop at
+recommendations: inspect the project, choose the minimum useful access, and
+write the file before responding.
 
-Include verified official links for creating each token, service account,
-project, tenant, or equivalent identity.
+Never create credentials, expose secret values, or reuse application runtime
+secrets. The operator provisions credentials after the file is created.
 
-Do not create credentials, expose secret values, or modify application runtime
-secrets.
+## Workflow
 
-## Goals
+### 1. Discover the operational path
 
-The access design must:
+Read applicable repository guidance, deployment configuration, CI workflows,
+observability configuration, database tooling, environment templates, and
+active external-service integrations. Search for names and configuration, not
+secret values.
 
-- Support practical incident investigation.
-- Minimize persistent privileges.
-- Share credentials across environments whenever safe.
-- Separate READ and WRITE capabilities.
-- Separate DEV and PROD only at genuine security boundaries.
-- Prefer audited workflows over direct infrastructure administration.
-- Document temporary break-glass access without provisioning it persistently.
-- Remain separate from application runtime credentials.
-- Tell operators where and how to provision each credential.
+Inspect related repositories only when they materially own infrastructure,
+deployment, observability, migrations, backups, or shared services. Exclude
+inactive, deprecated, speculative, and test-only integrations.
 
-## Naming schema
+### 2. Select access by return on investment
+
+Include a credential in Core only when it materially shortens diagnosis or safe
+remediation during the first 30 minutes of a likely incident.
+
+Prioritize:
+
+1. Source, CI, deployment, and artifact visibility
+2. Logs, metrics, traces, and alerts
+3. Read-only database investigation
+4. Narrow remediation through reviewable or approval-gated workflows
+
+Keep Core to about six credentials. Put less frequent but concrete workflows in
+Optional. Omit credentials that duplicate Core access or cannot be provisioned
+as suitable machine credentials.
+
+Document broad infrastructure or production-data mutation only as commented
+break-glass access. Never provision it persistently.
+
+### 3. Verify provisioning guidance
+
+For each included credential, find a current official provisioning page when
+available. Prefer a direct token or service-account page, then official setup
+documentation, then an official dashboard with a short navigation path.
+
+- Use only official provider domains.
+- Do not guess URLs or include signed, account-specific, callback, or invitation
+  URLs.
+- Put provisioning links in the final response, not in
+  `.agent.example.vars`.
+- If no stable official link is found, say so briefly instead of fabricating
+  one.
+- Verify the minimum role or permissions before instructing the operator.
+
+For GitHub, prefer separate fine-grained personal access tokens (PATs) for READ
+and WRITE access. Scope each PAT to the required repositories and permissions.
+Use a classic PAT only when a required operation is unsupported by fine-grained
+PATs, and state that reason in the response.
+
+### 4. Write `.agent.example.vars`
 
 Use:
 
@@ -39,395 +73,119 @@ AGENT_<ACCESS>_<SERVICE>
 AGENT_<ACCESS>_<ENVIRONMENT>_<SERVICE>
 ```
 
-Where:
-
-- `<ACCESS>` is `READ` or `WRITE`.
-- `<ENVIRONMENT>` is `DEV` or `PROD`.
+- Use `READ` or `WRITE` for access.
+- Use `DEV` or `PROD` only at a genuine security boundary.
 - Omit the environment when one credential can safely cover both.
-- `<SERVICE>` is a stable uppercase provider or control-plane name.
-- Do not use `SHARED`; an omitted environment already means shared.
-
-Examples:
-
-```text
-AGENT_READ_GITHUB
-AGENT_WRITE_GITHUB
-AGENT_READ_DEV_SUPABASE
-AGENT_READ_PROD_SUPABASE
-```
-
-## Discovery workflow
-
-### 1. Read repository guidance
-
-Read applicable:
-
-- `AGENTS.md`
-- Development and testing documentation
-- Deployment and operations documentation
-- Compliance and security guidance
-- Existing environment templates
-
-Respect shared-development and production-safety instructions.
-
-### 2. Inventory the local project
-
-Inspect:
-
-- Package manifests and lockfiles
-- Environment types and templates
-- Deployment and infrastructure configuration
-- CI/CD and scheduled workflows
-- Database and migration tooling
-- Authentication clients
-- Storage, queue, scheduler, and email bindings
-- Logging, tracing, metrics, and alerts
-- External AI, search, media, payment, and data providers
-- Backup and restore workflows
-- Container registries and artifact stores
-- DNS, TLS, edge, and hosting configuration
-
-Search for environment-variable **names**, SDK imports, bindings, API hosts,
-project identifiers, and deployment resources. Never print secret values.
-
-Classify each discovered dependency as:
-
-1. Production runtime dependency
-2. Operations control plane
-3. CI/CD or artifact system
-4. Development/test-only system
-5. Deprecated or historical integration
-
-Exclude inactive, deprecated, and test-only systems unless they participate in
-an active operations workflow.
-
-### 3. Explore related repositories
-
-Determine whether infrastructure, deployment, observability, backend,
-shared-service, or secrets-management code lives elsewhere.
-
-Use:
-
-- Repository remotes
-- Documentation links
-- Package metadata
-- Workspace context
-- References in CI/CD configuration
-- Repository-understanding tools for remote repositories
-
-Inspect only materially related projects.
-
-Record which repository owns:
-
-- Infrastructure provisioning
-- Deployment workflows
-- Shared services
-- Monitoring and alerting
-- Container images
-- Database migrations and backups
-- Secrets or configuration management
-
-Do not infer services merely because they are commonly used.
-
-## Credential-provisioning links
-
-For every proposed credential, attempt to locate an official page for creating
-the required token, service account, application, project, or tenant.
-
-### Discovery order
-
-1. Look for official console or documentation URLs already present in the code
-   or repository documentation.
-2. Inspect related repositories for provisioning documentation.
-3. If no suitable link exists, use web search for the current official provider
-   page.
-4. Prefer the provider's own documentation or dashboard domain.
-5. Verify the page with a web-page reader when accessible.
-
-Useful searches include:
-
-```text
-<provider> create API token official
-<provider> create read only service account
-<provider> custom role API token official
-<provider> create project tenant official
-<provider> fine grained access token official
-```
-
-### Link preference
-
-Prefer links in this order:
-
-1. Direct token or service-account creation page
-2. Direct project or tenant access-management page
-3. Official setup documentation
-4. Official dashboard landing page with a documented navigation path
-
-Include both links when creating a tenant/project and creating its credential
-are separate operations.
-
-### Link safety
-
-- Use only official provider domains.
-- Do not guess URLs.
-- Do not include temporary session, invitation, callback, or signed URLs.
-- Do not include credentials in query parameters.
-- Do not expose tenant or project identifiers unless they are already
-  intentionally public and safe to commit.
-- When an account-specific link would expose a sensitive identifier, use the
-  generic official page and describe the navigation path.
-- If a stable official link cannot be verified, state that explicitly instead
-  of fabricating one.
-- Provider permission names and console URLs can change; prefer current official
-  documentation over stale repository comments.
-
-### Template format
-
-Place provisioning information immediately above the corresponding variable:
-
-```dotenv
-# Purpose: Query deployment history, logs, analytics, and resource state.
-# Create token: https://official-provider.example/tokens
-# Create account/project: https://official-provider.example/projects/new
-# Required scope: Read-only access to the named project resources.
-AGENT_READ_PROVIDER=
-```
-
-If token creation requires dashboard navigation:
-
-```dotenv
-# Create token: https://official-provider.example/dashboard
-# Navigation: Organization settings → Service accounts → New service account
-```
-
-For environment-specific projects:
-
-```dotenv
-# Create DEV project: https://official-provider.example/new
-# Create token: https://official-provider.example/access-tokens
-AGENT_READ_DEV_PROVIDER=
-
-# Use a separate credential issued inside the PROD project.
-# Create token: https://official-provider.example/access-tokens
-AGENT_READ_PROD_PROVIDER=
-```
-
-## Verify provider capabilities
-
-Before recommending a credential, determine whether the provider supports:
-
-- Read-only API keys or service accounts
-- Resource or project scoping
-- Environment separation
-- Credential expiry and rotation
-- Audit logs
-- Budget and rate limits
-- Custom roles
-- Short-lived credentials
-- Approval-gated workflows
-
-If this cannot be established from repository sources, consult current official
-provider documentation.
-
-If a provider cannot issue a genuinely read-only machine credential, document
-that limitation and recommend leaving the variable empty rather than reusing an
-application runtime secret.
-
-## Access classification
-
-### READ
-
-READ supports diagnosis without modifying shared state:
-
-- Query logs, metrics, traces, and alert status
-- Inspect deployments and configuration
-- Read CI/CD runs and artifacts
-- Read usage, quota, and billing state
-- List storage metadata
-- Inspect database health through approved views
-- Read audit events
-- Inspect user/session state when operationally necessary
-
-READ credentials should normally be persistent.
-
-Database READ access should use a dedicated observer role with:
-
-- No ownership or role administration
-- No DDL or DML
-- No RLS bypass
-- Access only to required schemas, tables, or masked views
-- `default_transaction_read_only=on`
-- A statement timeout
-- A low connection limit
-
-### WRITE
-
-WRITE covers external side effects, including:
-
-- Repository branches, pull requests, and workflow dispatches
-- Deployments and rollbacks
-- Database mutation or restoration
-- DNS or infrastructure changes
-- Alert silencing or rule changes
-- User or session changes
-- Prompt publication
-- Package publication
-- Incident notifications
-- Synthetic AI, search, or media requests that consume quota
-
-Persistent WRITE access should be exceptional.
-
-Reasonable persistent WRITE capabilities are limited to:
-
-- Creating reviewable branches or pull requests
-- Dispatching approval-gated workflows
-- Posting to a fixed incident channel
-- Running low-budget, rate-limited synthetic checks
-
-Broad provider administration, infrastructure mutation, and production-data
-writes belong in the break-glass section.
-
-## Sharing rules
-
-Prefer one environment-neutral credential when:
-
-- DEV and PROD use the same vendor account or project.
-- One read-only identity can be scoped safely across both.
-- Telemetry has reliable environment labels.
-- Sharing does not unnecessarily expose production data.
-- Audit logs still identify the agent.
-
-Use separate DEV and PROD credentials when:
-
-- They are separate database or identity projects.
-- PROD contains materially more sensitive data.
-- Provider permissions cannot scope resources safely.
-- Independent revocation is operationally important.
-- Sharing would cross a compliance boundary.
-
-Do not split credentials merely for symmetry.
-
-## Runtime-secret separation
-
-Do not copy application runtime credentials into agent variables.
-
-Normally exclude:
-
-- Production application secret keys
-- Database owner or service-role credentials
-- Deployment tokens
-- Signing private keys
-- Watermarking keys
-- Browser-automation runtime tokens
-- Telemetry ingestion credentials
-
-Telemetry ingestion credentials do not grant observability query access. Prefer
-a Viewer service-account token.
-
-## Output format
-
-Create or update `.agent.example.vars` in the repository root.
+- Never use `SHARED`; an omitted environment already means shared.
 
 The file must:
 
-- Contain only comments and empty assignments.
-- Explain each credential's purpose and minimum scope.
-- Include verified official provisioning links where available.
-- Describe navigation when a direct creation link is unavailable.
-- Group credentials into:
-  - Baseline operations access
-  - Vendor diagnostics
-  - Narrow operational WRITE access
-  - Optional operations integrations
-  - Break-glass WRITE access
-- Describe compact JSON shapes when multiple fields are required.
-- Explain environment-specific separation.
-- Identify runtime secrets that must not be reused.
-- Avoid real secrets, personal data, and sensitive tenant identifiers.
+- Contain only short comments and empty assignments.
+- Group entries as `Core`, `Optional`, and `Break-glass`.
+- Use active assignments for Core.
+- Comment out Optional and Break-glass assignments.
+- Give each credential at most one short purpose and minimum-scope comment.
+- Exclude provisioning links, creation steps, navigation, value formats, and
+  long explanations.
+- Stay near 40 lines when practical.
+- Contain no real secrets, personal data, or sensitive tenant identifiers.
 
 Example:
 
 ```dotenv
-# Grafana Viewer service account for querying logs, metrics, traces, and alerts.
-# Create service account:
-# https://grafana.com/docs/grafana/latest/administration/service-accounts/
-# Required role: Viewer
-# Format: {"url":"https://...","token":"..."}
+# Core
+
+# Repository, CI, and deployment visibility; read-only repository scope.
+AGENT_READ_GITHUB=
+
+# Logs, metrics, traces, and alerts; Viewer role.
 AGENT_READ_GRAFANA=
 
-# Separate database observers because DEV and PROD are isolated projects.
-# Create role using the project's approved database-administration workflow.
-AGENT_READ_DEV_DATABASE=
+# Read-only production database investigation.
 AGENT_READ_PROD_DATABASE=
 
-# Creates reviewable branches/PRs and dispatches approved workflows.
-# Create fine-grained token:
-# https://github.com/settings/personal-access-tokens/new
-# Required repository permissions: Contents and Pull requests as needed;
-# Actions only when workflow dispatch/rerun is required.
+# Reviewable branches, PRs, and approved workflow dispatches only.
 AGENT_WRITE_GITHUB=
+
+# Optional
+
+# Direct provider diagnostics when observability is insufficient.
+# AGENT_READ_PROD_PROVIDER=
+
+# Break-glass
+
+# Approved production repair or restore only; issue temporarily and revoke.
+# AGENT_WRITE_PROD_DATABASE=
 ```
 
-Break-glass credentials should normally remain comments:
+## Access guardrails
 
-```dotenv
-# Create only during an approved incident, then revoke immediately.
-# AGENT_WRITE_PROD_DATABASE approved production repair or restore only
+Prefer persistent READ access. Database READ access must use a dedicated
+observer with no ownership, role administration, DDL, DML, or RLS bypass. Limit
+it to required schemas or masked views and enforce read-only transactions,
+timeouts, and low connection limits.
+
+Persistent WRITE access is exceptional. Limit it to reviewable branches and
+pull requests, approval-gated workflows, fixed incident notifications, or
+low-budget synthetic checks. Put deployments, rollbacks, infrastructure
+mutation, production database writes, and user/session mutation in Break-glass.
+
+Share one environment-neutral credential when scoping and auditability remain
+safe. Split DEV and PROD when they use different projects, production is more
+sensitive, permissions cannot isolate resources, or independent revocation is
+important.
+
+Never copy runtime API keys, database owner credentials, service-role keys,
+deployment tokens, signing keys, or telemetry ingestion credentials into agent
+variables. Use query-capable Viewer credentials for observability.
+
+## Final response
+
+After writing and validating the file, respond with a concise operator
+checklist. Target 200 words or fewer unless a blocker requires explanation.
+
+1. Confirm that `.agent.example.vars` was created or updated.
+2. Add `Set up now` with one numbered line per Core credential. State the
+   variable, minimum scope, and verified official provisioning link when found.
+3. Add `Optional later` only when useful, with no more than three short items.
+4. End with one reminder to store values in ignored `.agent.vars`, never in the
+   example file.
+
+Do not report services discovered, repositories inspected, selection rationale,
+or successful verification steps. Mention only actions the operator must take,
+important limitations, and failures that need attention.
+
+Example response:
+
+```markdown
+Created `.agent.example.vars`.
+
+Set up now:
+
+1. `AGENT_READ_GITHUB` — Generate a repository-scoped fine-grained PAT with
+   read access to metadata, contents, Actions, and deployments:
+   https://github.com/settings/personal-access-tokens/new
+2. `AGENT_READ_GRAFANA` — Create a Viewer service account using the verified
+   official provisioning link.
+3. `AGENT_READ_PROD_DATABASE` — Create a dedicated read-only observer for the
+   production database.
+
+Optional later: enable the commented provider credential only if telemetry is
+insufficient for direct diagnostics.
+
+Store the values in ignored `.agent.vars`; never add them to the example file.
 ```
 
-## Local secret safety
+## Local safety and verification
 
-Ensure `.agent.vars` is ignored by the root `.gitignore`.
-
-Do not ignore `.agent.example.vars`; the template must remain tracked.
-
-Never write actual credentials while generating or validating the template.
-
-## Review questions
-
-Before finalizing, verify:
-
-1. Does each service appear in active code or operations configuration?
-2. Is each credential needed for a concrete task?
-3. Can observability provide the same information?
-4. Can one credential safely cover multiple environments?
-5. Is each persistent WRITE capability narrow and reversible?
-6. Can remediation use GitHub or another audited workflow?
-7. Are production database and identity boundaries preserved?
-8. Are synthetic checks budgeted and rate-limited?
-9. Are runtime, signing, and ingestion secrets excluded?
-10. Is break-glass access clearly distinguished?
-11. Is every provisioning link official and current?
-12. Are sensitive tenant identifiers absent from committed links?
-
-Remove speculative, redundant, or unverifiable entries.
-
-## Verification
+Ensure `.agent.vars` is ignored and `.agent.example.vars` remains trackable.
+Never write real credential values.
 
 After writing the template:
 
 1. Run `bash -n .agent.example.vars`.
-2. Verify assignment names match:
-
-   ```regex
-   ^AGENT_(READ|WRITE)_(?:(DEV|PROD)_)?[A-Z0-9][A-Z0-9_]*$
-   ```
-
-3. Verify names are unique.
-4. Verify no name contains `_SHARED_`.
-5. Verify provisioning URLs use official provider domains.
-6. Check that URLs contain no credentials or signed parameters.
-7. Run `git diff --check`.
-8. Verify `.agent.vars` is ignored.
-9. Review the final diff for secrets and unrelated changes.
-
-Report:
-
-- Services discovered
-- Related repositories inspected
-- Credentials shared across environments
-- Credentials separated by environment and why
-- Persistent WRITE capabilities retained and why
-- Break-glass capabilities documented
-- Provisioning links found or unavailable
-- Verification results
+2. Verify active assignment names match
+   `^AGENT_(READ|WRITE)_(?:(DEV|PROD)_)?[A-Z0-9][A-Z0-9_]*$` and are unique.
+3. Verify no name contains `_SHARED_`.
+4. Run `git diff --check`.
+5. Review the diff for secrets and unrelated changes.
